@@ -80,6 +80,13 @@ export async function liveDepartures(code, key, now = Date.now()) {
       dest: String(there.municipalityName || there.shortName || there.name || there.iata || '?').toUpperCase(),
       destIata: there.iata || '',
       gate: here.gate || '', terminal: here.terminal || '',
+      // extra detail for the flight popup (any of these may be missing)
+      airline: (f.airline && f.airline.name) || '',
+      aircraft: (f.aircraft && f.aircraft.model) || '',
+      checkIn: here.checkInDesk ? String(here.checkInDesk) : '',
+      destName: there.name || '', country: there.countryCode || '',
+      date: localIso(info.tz, sched).slice(0, 10),
+      delayMins: isNaN(revised) ? 0 : Math.round((revised - sched) / 60000),
       status, sortKey: eff,
     });
   }

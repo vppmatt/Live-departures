@@ -3,6 +3,7 @@ import { getDepartures } from './departures.js';
 import { normTerm, termLabel, terminalsIn, filterByTerminal } from './airports.js';
 import { initPicker } from './picker.js';
 import { initSettings } from './settings.js';
+import { initFlightInfo } from './flightinfo.js';
 import * as prefs from './prefs.js';
 
 const ROWS = 10;
@@ -68,6 +69,11 @@ function render() {
   const slice = state.flights.slice(state.page * ROWS, state.page * ROWS + ROWS);
   rows.forEach((row, i) => {
     const f = slice[i];
+    row.flight = f || null;
+    row.root.classList.toggle('has', !!f);
+    row.root.tabIndex = f ? 0 : -1;
+    if (f) row.root.setAttribute('aria-label', `${f.flight} to ${f.dest}, ${f.time}, ${statusText(f)}. Press for details`);
+    else row.root.removeAttribute('aria-label');
     if (!f) { row.set({ dest: state.loaded && !state.flights.length && !i ? 'NO DEPARTURES' : '' }, i * 40); return; }
     row.set({ time: f.time, flight: flightText(f.flight), dest: f.dest, gate: gateText(f), status: statusText(f) }, i * 40, f.status);
   });
@@ -158,7 +164,7 @@ function learnTerminals(data) {
 function updateSummary() {
   const n = state.flights.length;
   const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  state.summary = `${n} flight${n === 1 ? '' : 's'}`;
+  state.summary = `${n} flight${n === 1 ? '' : 's'}` + (n ? ' · tap one for details' : '');
   state.updatedAt = t;
 }
 
@@ -180,6 +186,7 @@ async function load() {
     badge.textContent = data.fallback ? 'demo (live failed)' : live ? 'live' : 'demo data';
     state.error = data.fallback ? `Live data failed: ${data.fallback}` : '';
     updateSummary();
+    flightInfo.update(state.all);
   } catch (err) {
     state.error = `Update failed: ${err.message}`;
   } finally {
@@ -227,6 +234,13 @@ initPicker({
   root: $('titleWrap'), button: $('picker'), menu: $('menu'),
   getAirports: () => state.airports, getSel: () => state.sel,
   onSelect: select, onEdit: () => settings.open(),
+});
+
+const flightInfo = initFlightInfo({ dlg: $('flightDlg') });
+function openRow(row) { if (row?.flight) flightInfo.show(row.flight); }
+rowsEl.addEventListener('click', (e) => openRow(rows.find((r) => r.root === e.target.closest('.row'))));
+rowsEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRow(rows.find((r) => r.root === e.target)); }
 });
 
 /* keep the screen awake while the board is up (best effort) */

@@ -79,6 +79,18 @@
     </div>
   </form>
 </dialog>
+<dialog id="flightDlg" aria-labelledby="fNo">
+  <div class="inner">
+    <div class="fhead">
+      <div><div class="fno" id="fNo"></div><div class="fdest" id="fDest"></div></div>
+      <span class="pill" id="fPill"></span>
+    </div>
+    <p class="fbanner" id="fBanner" hidden></p>
+    <dl class="flist" id="fList"></dl>
+    <p class="hint" id="fNote" hidden>The data source doesn't say why a flight is delayed or cancelled. Check with the airline for the reason.</p>
+    <div class="actions"><span class="spacer"></span><button type="button" id="fClose" class="primary">Close</button></div>
+  </div>
+</dialog>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

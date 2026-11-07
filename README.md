@@ -5,6 +5,7 @@ picker for any other airport (3-letter IATA code). Runs in a browser or as an An
 
 - Real two-half flaps that cycle through the alphabet, with a cascading flip on every update
 - **Preferred airports** are set in Settings; tap the airport name on the board to switch between them. Airports with more than one terminal offer "All terminals" or a single terminal
+- Tap (or press Enter on) any flight for a details popup: delay and new expected time, airline, aircraft, terminal, gate, check-in desks and destination - whatever the data source provides. It stays open and updates on refresh
 - Pages: when there are more than 10 flights, page buttons appear at the bottom (it stays on the page you chose, including across refreshes)
 - Refreshes every **30 seconds** with a countdown bar and "next update in Ns" text; Refresh button for an instant update
 - Pauses while the app is in the background and refreshes as soon as you come back
@@ -67,6 +68,7 @@ npm test
 | Path | Purpose |
 | --- | --- |
 | `public/js/app.js` | Board logic: refresh loop, countdown, pager, selection |
+| `public/js/flightinfo.js` | Flight detail popup |
 | `public/js/picker.js` | Airport / terminal drop-down |
 | `public/js/settings.js` | Settings dialog (API key, preferred airports) |
 | `public/js/prefs.js` | On-device storage of key, airports and selection |

@@ -1,7 +1,7 @@
 // Generates a believable, deterministic-per-day departures schedule so the
 // board works with no API key. Statuses evolve in real time.
 import { AIRPORTS } from './airports.js';
-import { localMidnight, hhmm } from './tz.js';
+import { localMidnight, hhmm, localIso } from './tz.js';
 
 const LBA_DESTS = [
   ['AMS', 'AMSTERDAM', 'KL'], ['DUB', 'DUBLIN', 'EI'], ['DUB', 'DUBLIN', 'FR'],
@@ -13,6 +13,13 @@ const LBA_DESTS = [
   ['ACE', 'LANZAROTE', 'LS'], ['HER', 'HERAKLION', 'BY'], ['BCN', 'BARCELONA', 'LS'],
   ['FNC', 'MADEIRA', 'LS'], ['REU', 'REUS', 'FR'], ['SZG', 'SALZBURG', 'LS'],
 ];
+const AIRLINES = {
+  LS: 'Jet2', FR: 'Ryanair', KL: 'KLM', EI: 'Aer Lingus', BY: 'TUI Airways', AF: 'Air France', LH: 'Lufthansa',
+  IB: 'Iberia', VY: 'Vueling', AZ: 'ITA Airways', LX: 'SWISS', SK: 'SAS', TP: 'TAP Air Portugal',
+  TK: 'Turkish Airlines', EK: 'Emirates', BA: 'British Airways', OS: 'Austrian', A3: 'Aegean', SN: 'Brussels Airlines',
+};
+const AIRCRAFT = ['Airbus A320', 'Airbus A321', 'Airbus A320neo', 'Boeing 737-800', 'Boeing 737 MAX 8', 'Embraer 190'];
+
 const GENERIC_DESTS = [
   ['AMS', 'AMSTERDAM', 'KL'], ['DUB', 'DUBLIN', 'EI'], ['CDG', 'PARIS CDG', 'AF'],
   ['FRA', 'FRANKFURT', 'LH'], ['MAD', 'MADRID', 'IB'], ['BCN', 'BARCELONA', 'VY'],
@@ -56,6 +63,8 @@ function scheduleForDay(code, tz, dayStart, dayKey) {
       cancelled: rand() < 0.025,
       gate: String(1 + Math.floor(rand() * 20)),
       terminal: terms.length ? terms[Math.floor(rand() * terms.length)] : '',
+      aircraft: AIRCRAFT[Math.floor(rand() * AIRCRAFT.length)],
+      desks: 1 + Math.floor(rand() * 30),
     });
   }
   return out;
@@ -83,7 +92,11 @@ export function demoDepartures(code, now = Date.now()) {
         expected: f.delay >= 5 ? hhmm(info.tz, eff) : null,
         flight: f.flight, dest: f.dest, destIata: f.destIata,
         gate: !f.cancelled && untilDep <= 60 ? f.gate : '',
-        terminal: f.terminal, status, sortKey: eff,
+        terminal: f.terminal,
+        airline: AIRLINES[f.flight.split(' ')[0]] || '', aircraft: f.aircraft,
+        checkIn: !f.cancelled && untilDep > 30 && untilDep <= 150 ? `Desks ${f.desks}-${f.desks + 5}` : '',
+        destName: '', country: '', date: localIso(info.tz, f.sched).slice(0, 10), delayMins: f.delay,
+        status, sortKey: eff,
       });
     }
   }

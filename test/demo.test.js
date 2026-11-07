@@ -72,3 +72,41 @@ test('findAirport: built-in, needs key otherwise, maps 404', async () => {
   globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({ shortName: 'Quux', timeZone: 'Asia/Tokyo' }) });
   assert.deepStrictEqual(await findAirport('QUX', 'k'), { iata: 'QUX', name: 'Quux', tz: 'Asia/Tokyo' });
 });
+
+import { describeDelay, detailRows, fmtMins } from '../public/js/flightinfo.js';
+
+test('fmtMins', () => {
+  assert.strictEqual(fmtMins(25), '25 min');
+  assert.strictEqual(fmtMins(60), '1 h');
+  assert.strictEqual(fmtMins(135), '2 h 15 min');
+  assert.strictEqual(fmtMins(-10), '10 min');
+});
+
+test('describeDelay covers delayed, cancelled, early and normal', () => {
+  const base = { flight: 'LS 1', time: '15:20', dest: 'PALMA', destIata: 'PMI', status: 'scheduled', delayMins: 0, expected: null };
+  assert.strictEqual(describeDelay(base), null);
+  assert.match(describeDelay({ ...base, status: 'delayed', expected: '15:45', delayMins: 25 }).text, /Delayed by 25 min.*15:45.*scheduled 15:20/);
+  assert.match(describeDelay({ ...base, status: 'delayed' }).text, /not been published/);
+  assert.match(describeDelay({ ...base, status: 'cancelled' }).text, /cancelled/);
+  assert.match(describeDelay({ ...base, expected: '15:10', delayMins: -10 }).text, /10 min earlier/);
+});
+
+test('detailRows only lists fields that exist', () => {
+  const sparse = detailRows({ flight: 'LS 1', time: '15:20', dest: 'PALMA', destIata: 'PMI', terminal: '', gate: '', status: 'scheduled' });
+  assert.deepStrictEqual(sparse.map((r) => r[0]), ['Scheduled', 'Destination']);
+  const full = Object.fromEntries(detailRows({ flight: 'LS 1', time: '15:20', date: '2026-11-07', dest: 'PALMA', destIata: 'PMI', destName: 'Palma de Mallorca Son Sant Joan', airline: 'Jet2', aircraft: 'Airbus A321', terminal: 'T2', gate: '9', checkIn: '14-19', expected: '15:45', country: 'ES' }));
+  assert.strictEqual(full.Airline, 'Jet2'); assert.strictEqual(full.Terminal, 'Terminal 2'); assert.strictEqual(full.Expected, '15:45');
+  assert.match(full.Scheduled, /^15:20 · /); assert.match(full.Destination, /PALMA \(PMI\) – Palma de Mallorca/);
+});
+
+test('live mapping carries airline, aircraft, check-in and delay minutes', async () => {
+  const now = Date.UTC(2026, 10, 7, 9, 0);
+  globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({ departures: [
+    { number: 'LS 123', status: 'Delayed', airline: { name: 'Jet2' }, aircraft: { model: 'Airbus A321' },
+      departure: { scheduledTime: { utc: '2026-11-07 09:30Z' }, revisedTime: { utc: '2026-11-07 09:55Z' }, checkInDesk: '14-19', terminal: '2' },
+      arrival: { airport: { iata: 'PMI', municipalityName: 'Palma', name: 'Palma de Mallorca', countryCode: 'ES' } } },
+  ] }) });
+  const [f] = (await liveDepartures('LBA', 'k', now)).flights;
+  assert.deepStrictEqual([f.airline, f.aircraft, f.checkIn, f.delayMins, f.destName, f.country, f.date, f.terminal],
+    ['Jet2', 'Airbus A321', '14-19', 25, 'Palma de Mallorca', 'ES', '2026-11-07', '2']);
+});

@@ -155,3 +155,28 @@ dialog input:not([type="checkbox"]) { min-height: 38px; }
   .cols, .row { gap: .8em; }
   .cell.gate, .cols span:nth-child(4) { display: none; }
 }
+
+/* ---- tappable rows + flight popup ---- */
+.row { user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; border-radius: .4em; }
+.row.has { cursor: pointer; }
+.row.has:hover { background: #ffffff0c; }
+.row.has:active { background: #ffffff18; }
+.row:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
+
+#flightDlg { padding: 0; width: min(92vw, 36em); }
+#flightDlg .inner { padding: 1.1em 1.4em 1em; }
+.fhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 1em; }
+.fno { font: 700 1.5em/1.1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--amber); letter-spacing: .06em; }
+.fdest { color: var(--ink); font-size: 1.05em; margin-top: .2em; text-transform: capitalize; }
+.pill { padding: .3em .8em; border-radius: 99em; font-size: .8em; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; border: 1px solid currentColor; white-space: nowrap; }
+.pill[data-tone="ok"] { color: var(--ink); } .pill[data-tone="good"] { color: var(--green); }
+.pill[data-tone="warn"] { color: var(--amber); } .pill[data-tone="bad"] { color: var(--red); }
+.fbanner { margin: .9em 0 0; padding: .7em .9em; border-radius: .5em; background: #1c1d20; border-left: .3em solid var(--muted); line-height: 1.4; }
+.fbanner[data-tone="warn"] { border-color: var(--amber); } .fbanner[data-tone="bad"] { border-color: var(--red); } .fbanner[data-tone="good"] { border-color: var(--green); }
+.flist { display: grid; grid-template-columns: 1fr 1fr; gap: .7em 1.2em; margin: 1em 0 .2em; }
+.flist div { min-width: 0; }
+.flist dt { color: var(--muted); font-size: .72em; letter-spacing: .12em; text-transform: uppercase; }
+.flist dd { margin: .15em 0 0; overflow-wrap: anywhere; }
+#flightDlg .actions { position: static; margin-top: .8em; padding: 0; }
+@media (max-width: 520px) { .flist { grid-template-columns: 1fr; } }
+#fNote { margin: .9em 0 0; }
