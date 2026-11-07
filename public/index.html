@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Departures</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='14' fill='%23111'/><rect x='14' y='14' width='72' height='72' rx='8' fill='%23222'/><path d='M14 50h72' stroke='%23000' stroke-width='5'/><text x='50' y='72' font-size='60' font-family='monospace' font-weight='bold' fill='%23f5c542' text-anchor='middle'>D</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="board" id="board">
+  <header class="bar">
+    <div class="title">
+      <span class="plane" aria-hidden="true">&#9992;</span>
+      <h1 id="airportName">Departures</h1>
+      <span class="badge" id="badge" hidden></span>
+    </div>
+    <div class="clock" id="clock" aria-label="Local time">--:--:--</div>
+  </header>
+
+  <div class="cols" aria-hidden="true">
+    <span style="--n:5">Time</span><span style="--n:7">Flight</span>
+    <span style="--n:16">Destination</span><span style="--n:4">Gate</span><span style="--n:11">Status</span>
+  </div>
+  <div class="rows" id="rows" role="table" aria-label="Departures"></div>
+
+  <footer class="bar foot">
+    <div class="status" id="updated" role="status">Loading…</div>
+    <div class="controls">
+      <label class="field">Airport
+        <input id="airport" list="airportList" maxlength="3" size="3" autocomplete="off" spellcheck="false">
+        <datalist id="airportList"></datalist>
+      </label>
+      <button id="sound" type="button" aria-pressed="false" title="Toggle flap sound">Sound: off</button>
+      <button id="full" type="button" title="Fullscreen">Fullscreen</button>
+    </div>
+  </footer>
+</main>
+<script src="flap.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
