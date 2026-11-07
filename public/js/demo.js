@@ -1,8 +1,7 @@
-'use strict';
 // Generates a believable, deterministic-per-day departures schedule so the
 // board works with no API key. Statuses evolve in real time.
-const { AIRPORTS } = require('./airports');
-const { localMidnight, hhmm } = require('./tz');
+import { AIRPORTS } from './airports.js';
+import { localMidnight, hhmm } from './tz.js';
 
 const LBA_DESTS = [
   ['AMS', 'AMSTERDAM', 'KL'], ['DUB', 'DUBLIN', 'EI'], ['DUB', 'DUBLIN', 'FR'],
@@ -60,7 +59,7 @@ function scheduleForDay(code, tz, dayStart, dayKey) {
   return out;
 }
 
-function demoDepartures(code, now = Date.now()) {
+export function demoDepartures(code, now = Date.now()) {
   const info = AIRPORTS[code] || { name: code + ' Airport', tz: 'Europe/London' };
   const flights = [];
   for (const off of [-1, 0, 1]) {
@@ -89,5 +88,3 @@ function demoDepartures(code, now = Date.now()) {
   flights.sort((a, b) => a.sortKey - b.sortKey);
   return { airport: { iata: code, name: info.name, tz: info.tz }, source: 'demo', flights };
 }
-
-module.exports = { demoDepartures };

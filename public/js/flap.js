@@ -1,4 +1,3 @@
-'use strict';
 // Split-flap display primitives: Flap (one character), Row (a set of cells).
 
 const CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:-./'+";
@@ -107,4 +106,4 @@ class Row {
   }
 }
 
-window.SplitFlap = { Row, normalise };
+export { Row, normalise };

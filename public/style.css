@@ -16,10 +16,12 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
 
 /* Everything on the board is sized in em, so one font-size scales the whole thing. */
 .board {
-  --fs: clamp(7px, 1.3vw, 24px);
+  --fs: clamp(7px, min(1.3vw, 2.6vh), 24px);
   font-size: var(--fs);
   width: 100%; max-width: 100%;
   padding: 1.2em 1.4em;
+  padding-left: max(1.4em, env(safe-area-inset-left)); padding-right: max(1.4em, env(safe-area-inset-right));
+  padding-bottom: max(1.2em, env(safe-area-inset-bottom));
   display: flex; flex-direction: column; gap: .9em;
 }
 .bar { display: flex; justify-content: space-between; align-items: center; gap: 1em; flex-wrap: wrap; }
@@ -78,11 +80,30 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
 input, button {
   font: inherit; color: var(--ink); background: #1c1d20; border: 1px solid #34363a; border-radius: .5em; padding: .45em .8em;
 }
-input { text-transform: uppercase; width: 5.5em; text-align: center; letter-spacing: .15em; font-weight: 700; }
+#airport { text-transform: uppercase; width: 5.5em; text-align: center; letter-spacing: .15em; font-weight: 700; }
 button { cursor: pointer; }
 button:hover, input:hover { border-color: var(--amber); }
 button[aria-pressed="true"] { border-color: var(--green); color: var(--green); }
 :focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+.countdown { height: .3em; background: #1c1d20; border-radius: 99em; overflow: hidden; margin-top: -.3em; }
+#bar { height: 100%; width: 100%; background: var(--amber); transform-origin: left; transform: scaleX(1); }
+.countdown.busy #bar { background: var(--green); }
+.status .next { color: var(--amber); font-variant-numeric: tabular-nums; }
+.status.err { color: var(--red); }
+
+dialog { background: var(--housing); color: var(--ink); border: 1px solid #34363a; border-radius: .8em; padding: 1.2em 1.4em; width: min(92vw, 30em); font-size: 16px; }
+dialog::backdrop { background: #000a; }
+dialog h2 { margin: 0 0 .5em; font-size: 1.2em; }
+dialog .hint { color: var(--muted); font-size: .85em; line-height: 1.45; margin: 0 0 1em; }
+dialog a { color: var(--amber); }
+dialog .block { display: flex; flex-direction: column; gap: .4em; font-size: .85em; color: var(--muted); }
+dialog input[type="password"], dialog input[type="text"] { width: 100%; text-align: left; letter-spacing: normal; text-transform: none; }
+dialog .check { display: flex; gap: .5em; align-items: center; margin: .7em 0 0; font-size: .85em; color: var(--muted); }
+dialog .actions { display: flex; gap: .6em; margin-top: 1.2em; }
+dialog .spacer { flex: 1; }
+button.primary { background: var(--amber); color: #111; border-color: var(--amber); font-weight: 700; }
+input:not([type]), input[type="password"], input[type="text"] { color: var(--ink); background: #1c1d20; }
 
 @media (max-width: 720px) {
   .board { --fs: 1.5vw; padding: .8em; }

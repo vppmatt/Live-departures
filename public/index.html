@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0c">
 <title>Live Departures</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='14' fill='%23111'/><rect x='14' y='14' width='72' height='72' rx='8' fill='%23222'/><path d='M14 50h72' stroke='%23000' stroke-width='5'/><text x='50' y='72' font-size='60' font-family='monospace' font-weight='bold' fill='%23f5c542' text-anchor='middle'>D</text></svg>">
 <link rel="stylesheet" href="style.css">
@@ -24,19 +25,39 @@
   </div>
   <div class="rows" id="rows" role="table" aria-label="Departures"></div>
 
+  <div class="countdown" aria-hidden="true"><div id="bar"></div></div>
+
   <footer class="bar foot">
     <div class="status" id="updated" role="status">Loading…</div>
     <div class="controls">
       <label class="field">Airport
-        <input id="airport" list="airportList" maxlength="3" size="3" autocomplete="off" spellcheck="false">
+        <input id="airport" list="airportList" maxlength="3" autocomplete="off" spellcheck="false">
         <datalist id="airportList"></datalist>
       </label>
+      <button id="refresh" type="button" title="Refresh now">Refresh</button>
       <button id="sound" type="button" aria-pressed="false" title="Toggle flap sound">Sound: off</button>
       <button id="full" type="button" title="Fullscreen">Fullscreen</button>
+      <button id="settings" type="button" title="Settings">Settings</button>
     </div>
   </footer>
 </main>
-<script src="flap.js"></script>
-<script src="app.js"></script>
+<dialog id="dlg">
+  <form method="dialog" id="settingsForm">
+    <h2>Settings</h2>
+    <p class="hint">Live data uses <a href="https://rapidapi.com/aedbx-aedbx/api/aerodatabox" target="_blank" rel="noopener">AeroDataBox on RapidAPI</a>.
+      Paste your RapidAPI key below. It is stored only on this device. Without a key the board shows demo data.</p>
+    <label class="block">RapidAPI key
+      <input id="keyInput" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="paste key here">
+    </label>
+    <label class="check"><input id="showKey" type="checkbox"> Show key</label>
+    <div class="actions">
+      <button value="clear" id="clearKey" type="button">Remove key</button>
+      <span class="spacer"></span>
+      <button value="cancel">Cancel</button>
+      <button value="save" id="saveKey" class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+<script type="module" src="js/app.js"></script>
 </body>
 </html>

@@ -1,7 +1,6 @@
-'use strict';
 // Airports offered in the picker. Any other valid 3-letter IATA code also works
 // in live mode (the provider looks it up); in demo mode it uses generic data.
-const AIRPORTS = {
+export const AIRPORTS = {
   LBA: { name: 'Leeds Bradford', tz: 'Europe/London' },
   MAN: { name: 'Manchester', tz: 'Europe/London' },
   LHR: { name: 'London Heathrow', tz: 'Europe/London' },
@@ -18,5 +17,3 @@ const AIRPORTS = {
   FRA: { name: 'Frankfurt', tz: 'Europe/Berlin' },
   JFK: { name: 'New York JFK', tz: 'America/New_York' },
 };
-
-module.exports = { AIRPORTS };

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Live Departures</string>
+    <string name="title_activity_main">Live Departures</string>
+    <string name="package_name">app.livedepartures</string>
+    <string name="custom_url_scheme">app.livedepartures</string>
+</resources>

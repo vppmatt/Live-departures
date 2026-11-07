@@ -1,0 +1,9 @@
+{
+  "appId": "app.livedepartures",
+  "appName": "Live Departures",
+  "webDir": "public",
+  "backgroundColor": "#0b0b0c",
+  "plugins": {
+    "CapacitorHttp": { "enabled": true }
+  }
+}

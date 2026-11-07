@@ -1,18 +1,20 @@
-'use strict';
 // Live provider: AeroDataBox via RapidAPI (https://rapidapi.com/aedbx-aedbx/api/aerodatabox).
 // Works for any airport by IATA code.
-const { AIRPORTS } = require('./airports');
-const { localIso, hhmm } = require('./tz');
+import { AIRPORTS } from './airports.js';
+import { localIso, hhmm } from './tz.js';
 
 const HOST = 'aerodatabox.p.rapidapi.com';
 const airportCache = new Map();
 
 async function api(path, key) {
-  const res = await fetch(`https://${HOST}${path}`, {
+  const request = fetch(`https://${HOST}${path}`, {
     headers: { 'X-RapidAPI-Key': key, 'X-RapidAPI-Host': HOST, Accept: 'application/json' },
-    signal: AbortSignal.timeout(10000),
   });
-  if (!res.ok) throw new Error(`AeroDataBox ${res.status} for ${path.split('?')[0]}`);
+  const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('request timed out')), 12000));
+  const res = await Promise.race([request, timeout]);
+  if (res.status === 401 || res.status === 403) throw new Error('API key rejected (check it in Settings)');
+  if (res.status === 429) throw new Error('API quota exceeded');
+  if (!res.ok) throw new Error(`AeroDataBox error ${res.status}`);
   return res.json();
 }
 
@@ -46,7 +48,7 @@ function mapStatus(raw, sched, revised, now) {
 // utc looks like "2026-11-07 14:35Z"; V8 parses it once the space becomes a "T".
 const utc = (t) => (t && t.utc ? Date.parse(String(t.utc).replace(' ', 'T')) : NaN);
 
-async function liveDepartures(code, key, now = Date.now()) {
+export async function liveDepartures(code, key, now = Date.now()) {
   const info = await airportInfo(code, key);
   const from = localIso(info.tz, now - 30 * 60000);
   const to = localIso(info.tz, now + (11 * 60 + 30) * 60000);
@@ -77,5 +79,3 @@ async function liveDepartures(code, key, now = Date.now()) {
   flights.sort((a, b) => a.sortKey - b.sortKey);
   return { airport: info, source: 'aerodatabox', flights };
 }
-
-module.exports = { liveDepartures };

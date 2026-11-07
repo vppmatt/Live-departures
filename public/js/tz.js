@@ -1,4 +1,3 @@
-'use strict';
 // Small timezone helpers built on Intl (no dependencies).
 
 function parts(tz, ts) {
@@ -40,4 +39,4 @@ function localIso(tz, ts) {
   return `${p.y}-${z(p.m)}-${z(p.d)}T${z(p.h)}:${z(p.mi)}`;
 }
 
-module.exports = { offsetMs, localMidnight, hhmm, localIso };
+export { offsetMs, localMidnight, hhmm, localIso };
