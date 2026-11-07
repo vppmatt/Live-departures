@@ -49,16 +49,12 @@ class Flap {
     this.root.appendChild(this.leaf);
   }
 
-  /** Flip to `ch`, passing through the characters in between (capped at MAX_FLIPS cards). */
+  /** Flip to `ch`, passing through some of the characters in between (at most MAX_FLIPS cards). */
   set(ch, delay = 0) {
     this.target = ch;
     if (this.running || ch === this.cur) return;
     if (REDUCED || document.hidden) { this._show(ch); return; }
     this.running = true;
-    // Distance round the drum; if long, the first card jumps ahead so we flip <= MAX_FLIPS.
-    const n = CHARS.length;
-    const dist = (CHARS.indexOf(ch) - CHARS.indexOf(this.cur) + n) % n;
-    this.skip = Math.max(0, dist - MAX_FLIPS);
     setTimeout(() => this._step(), delay);
   }
 
@@ -70,9 +66,11 @@ class Flap {
   async _step() {
     while (this.cur !== this.target) {
       if (document.hidden) { this._show(this.target); break; }
-      const n = CHARS.length;
-      const next = CHARS[(CHARS.indexOf(this.cur) + 1 + this.skip) % n];
-      this.skip = 0;
+      // Re-evaluated every step, so a tile retargeted mid-flip is capped too: if the target is
+      // far round the drum the next card jumps ahead, leaving at most MAX_FLIPS cards to show.
+      const n = CHARS.length, idx = CHARS.indexOf(this.cur);
+      const dist = (CHARS.indexOf(this.target) - idx + n) % n;
+      const next = CHARS[(idx + 1 + Math.max(0, dist - MAX_FLIPS)) % n];
       await this._flip(this.cur, next);
       this.cur = next;
     }

@@ -4,9 +4,11 @@ A split-flap ("Solari") style departures board for **Leeds Bradford Airport (LBA
 picker for any other airport (3-letter IATA code). Runs in a browser or as an Android app.
 
 - Real two-half flaps that cycle through the alphabet, with a cascading flip on every update
+- **Preferred airports** are set in Settings; tap the airport name on the board to switch between them. Airports with more than one terminal offer "All terminals" or a single terminal
+- Pages: when there are more than 10 flights, page buttons appear at the bottom (it stays on the page you chose, including across refreshes)
 - Refreshes every **30 seconds** with a countdown bar and "next update in Ns" text; Refresh button for an instant update
 - Pauses while the app is in the background and refreshes as soon as you come back
-- Keeps the screen awake while open; optional flap click sound; auto-pages if there are more than 10 flights
+- Keeps the screen awake while open; optional flap click sound
 - No backend: the app calls the flight-data API directly. **Your API key is typed into the app
   (Settings) and stored only on your device - it is never in this repo.**
 - Without a key it shows a generated demo schedule
@@ -41,6 +43,16 @@ npm run android:open     # opens Android Studio; press Run
 
 After changing anything in `public/`, run `npm run android:sync` again.
 
+## Airports and terminals
+
+Settings -> *Preferred airports*: tap a quick-add code, or type any 3-letter IATA code and tap Add
+(codes not in the quick-add list are looked up through the API, so enter your key first).
+
+AeroDataBox reports a terminal on each flight but has no per-airport terminal list, so terminals are
+seeded for a few well-known airports (MAN, LHR, LGW, DUB, FRA) and otherwise **learned from the flights
+the app has seen** for that airport. An airport therefore only offers a terminal choice once it has
+loaded flights that carry more than one terminal.
+
 ## Develop in a browser
 
 ```sh
@@ -48,14 +60,17 @@ npm start        # static server on http://localhost:3000
 npm test
 ```
 
-`/?airport=MAN` opens a specific airport. (Direct browser calls to RapidAPI depend on its CORS
-headers; the Android app doesn't have that limitation.)
+(Direct browser calls to RapidAPI depend on its CORS headers; the Android app doesn't have that limitation.)
 
 ## Layout
 
 | Path | Purpose |
 | --- | --- |
-| `public/js/app.js` | Board logic: refresh loop, countdown, paging, settings |
+| `public/js/app.js` | Board logic: refresh loop, countdown, pager, selection |
+| `public/js/picker.js` | Airport / terminal drop-down |
+| `public/js/settings.js` | Settings dialog (API key, preferred airports) |
+| `public/js/prefs.js` | On-device storage of key, airports and selection |
+| `public/js/airports.js` | Built-in airports and terminal helpers |
 | `public/js/flap.js` | Split-flap tile and row component |
 | `public/js/departures.js` | Live-or-demo selection and error fallback |
 | `public/js/aerodatabox.js` | AeroDataBox client |

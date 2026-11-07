@@ -1,11 +1,12 @@
 import { Row } from './flap.js';
 import { getDepartures } from './departures.js';
-import { AIRPORTS } from './airports.js';
+import { normTerm, termLabel, terminalsIn, filterByTerminal } from './airports.js';
+import { initPicker } from './picker.js';
+import { initSettings } from './settings.js';
+import * as prefs from './prefs.js';
 
 const ROWS = 10;
-const PAGE_MS = 14000;
 const REFRESH_MS = 30000;
-const KEY_STORE = 'rapidapiKey';
 const COLUMNS = [
   { key: 'time', len: 5, cls: 'time' },
   { key: 'flight', len: 7, cls: 'flight' },
@@ -15,15 +16,14 @@ const COLUMNS = [
 ];
 
 const $ = (id) => document.getElementById(id);
-const store = {
-  get(k, d = '') { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
-  set(k, v) { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch {} },
-};
 const state = {
-  airport: 'LBA', flights: [], page: 0, tz: 'Europe/London', apiKey: store.get(KEY_STORE),
+  airports: prefs.getAirports(), sel: prefs.getSel(), apiKey: prefs.getKey(),
+  all: [], flights: [], loaded: false, page: 0, pages: 1, tz: 'Europe/London',
   soundOn: false, audio: null, lastClick: 0,
   loading: false, nextAt: Date.now() + REFRESH_MS, summary: '', error: '', seq: 0,
 };
+if (!state.airports.some((a) => a.iata === state.sel.iata)) state.sel = { iata: state.airports[0].iata, terminal: null };
+const current = () => state.airports.find((a) => a.iata === state.sel.iata) || state.airports[0];
 
 /* ---------- sound (optional) ---------- */
 function click() {
@@ -60,31 +60,60 @@ function statusText(f) {
   }
 }
 const flightText = (s) => (s.length > 7 ? s.replace(/\s+/g, '') : s);
-const gateText = (f) => f.gate || (f.terminal && 'T' + f.terminal) || '';
+const gateText = (f) => f.gate || (f.terminal ? 'T' + normTerm(f.terminal) : '');
 
 function render() {
-  const pages = Math.max(1, Math.ceil(state.flights.length / ROWS));
-  if (state.page >= pages) state.page = 0;
+  state.pages = Math.max(1, Math.ceil(state.flights.length / ROWS));
+  if (state.page >= state.pages) state.page = state.pages - 1;
   const slice = state.flights.slice(state.page * ROWS, state.page * ROWS + ROWS);
   rows.forEach((row, i) => {
     const f = slice[i];
-    if (!f) { row.set({ dest: !state.flights.length && !i ? 'NO DEPARTURES' : '' }, i * 40); return; }
+    if (!f) { row.set({ dest: state.loaded && !state.flights.length && !i ? 'NO DEPARTURES' : '' }, i * 40); return; }
     row.set({ time: f.time, flight: flightText(f.flight), dest: f.dest, gate: gateText(f), status: statusText(f) }, i * 40, f.status);
   });
-  state.pages = pages;
+  renderPager();
   paintStatus();
 }
 
+/* ---------- pager (manual page selection) ---------- */
+const MAX_NUMBERED = 7;
+function renderPager() {
+  const nav = $('pager');
+  nav.hidden = state.pages <= 1;
+  if (nav.hidden) return;
+  const refocus = nav.contains(document.activeElement) ? document.activeElement.dataset.page : null;
+  const mk = (label, page, { current = false, aria, disabled = false } = {}) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = label; b.dataset.page = page; b.disabled = disabled;
+    if (aria) b.setAttribute('aria-label', aria);
+    if (current) b.setAttribute('aria-current', 'page');
+    b.addEventListener('click', () => { state.page = page; render(); });
+    return b;
+  };
+  const text = (t) => Object.assign(document.createElement('span'), { className: 'lbl', textContent: t });
+  const kids = [];
+  if (state.pages <= MAX_NUMBERED) {
+    kids.push(text('Page'));
+    for (let p = 0; p < state.pages; p++) kids.push(mk(String(p + 1), p, { current: p === state.page, aria: `Page ${p + 1}` }));
+  } else {
+    kids.push(mk('‹', state.page - 1, { aria: 'Previous page', disabled: state.page === 0 }),
+      text(`Page ${state.page + 1} of ${state.pages}`),
+      mk('›', state.page + 1, { aria: 'Next page', disabled: state.page === state.pages - 1 }));
+  }
+  nav.replaceChildren(...kids);
+  if (refocus != null) nav.querySelector(`[data-page="${refocus}"]:not(:disabled)`)?.focus();
+}
+
 /* ---------- status line + countdown ---------- */
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 function paintStatus() {
   const el = $('updated');
   const secs = Math.max(0, Math.ceil((state.nextAt - Date.now()) / 1000));
-  const page = state.pages > 1 ? ` · page ${state.page + 1}/${state.pages}` : '';
   const next = state.loading ? 'updating…' : `next update in <span class="next">${secs}s</span>`;
   el.classList.toggle('err', !!state.error);
-  el.innerHTML = (state.error ? esc(state.error) + ' · ' : esc(state.summary) + page + ' · ') + next;
+  el.title = state.error || `Updated ${state.updatedAt || ''}`;
+  el.innerHTML = (state.error ? esc(state.error) : esc(state.summary)) + ' · ' + next;
 }
-const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 function frame() {
   const remaining = state.nextAt - Date.now();
@@ -96,26 +125,61 @@ function frame() {
 setInterval(frame, 200);
 setInterval(paintStatus, 1000);
 
+/* ---------- selection ---------- */
+function paintTitle() {
+  const a = current(), t = state.sel.terminal;
+  $('airportName').textContent = `${a.name} (${a.iata})` + (t ? ` · ${termLabel(t)}` : '');
+  document.title = `${a.iata}${t ? ' T' + t : ''} departures`;
+  if (a.tz) state.tz = a.tz;
+}
+function applyFilter() { state.flights = filterByTerminal(state.all, state.sel.terminal); }
+
+function select(iata, terminal = null) {
+  const sameAirport = iata === state.sel.iata;
+  state.sel = { iata, terminal };
+  prefs.setSel(state.sel);
+  state.page = 0;
+  paintTitle();
+  if (sameAirport && state.loaded) { applyFilter(); updateSummary(); render(); return; }
+  state.all = []; state.flights = []; state.loaded = false; state.error = '';
+  render();
+  refreshNow();
+}
+
 /* ---------- data ---------- */
+function learnTerminals(data) {
+  const entry = current();
+  const seen = new Set([...(entry.terminals || []), ...terminalsIn(data.flights)]);
+  if (seen.size !== (entry.terminals || []).length) {
+    entry.terminals = [...seen].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    prefs.setAirports(state.airports);
+  }
+}
+function updateSummary() {
+  const n = state.flights.length;
+  const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  state.summary = `${n} flight${n === 1 ? '' : 's'}`;
+  state.updatedAt = t;
+}
+
 async function load() {
   if (state.loading) return;
   state.loading = true; paintStatus();
-  const seq = ++state.seq, airport = state.airport;
+  const seq = ++state.seq, iata = state.sel.iata;
   try {
-    const data = await getDepartures(airport, state.apiKey);
-    if (seq !== state.seq || airport !== state.airport) return; // airport changed meanwhile
-    state.flights = data.flights;
-    state.tz = data.airport.tz || state.tz;
-    $('airportName').textContent = `${data.airport.name} (${data.airport.iata}) departures`;
-    document.title = `${data.airport.iata} departures`;
+    const data = await getDepartures(iata, state.apiKey);
+    if (seq !== state.seq || iata !== state.sel.iata) return; // selection changed meanwhile
+    state.all = data.flights; state.loaded = true;
+    state.source = data.source; state.fallback = data.fallback;
+    learnTerminals(data);
+    applyFilter();
     const live = data.source !== 'demo';
     const badge = $('badge');
     badge.hidden = false;
     badge.classList.toggle('live', live);
     badge.textContent = data.fallback ? 'demo (live failed)' : live ? 'live' : 'demo data';
     state.error = data.fallback ? `Live data failed: ${data.fallback}` : '';
-    const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    state.summary = `${state.flights.length} flight${state.flights.length === 1 ? "" : "s"} · updated ${t}` + (!live && !data.fallback ? ' · add API key in Settings for live data' : '');
+    updateSummary();
   } catch (err) {
     state.error = `Update failed: ${err.message}`;
   } finally {
@@ -123,7 +187,6 @@ async function load() {
   }
   render();
 }
-
 function refreshNow() { state.loading = false; load(); }
 
 /* ---------- clock ---------- */
@@ -135,18 +198,6 @@ function tick() {
 }
 
 /* ---------- controls ---------- */
-function setAirport(code, { push = true } = {}) {
-  code = code.toUpperCase();
-  if (!/^[A-Z]{3}$/.test(code)) return;
-  state.airport = code; state.page = 0;
-  $('airport').value = code;
-  store.set('airport', code);
-  if (push) try { history.replaceState(null, '', '?airport=' + code); } catch {}
-  refreshNow();
-}
-
-$('airport').addEventListener('input', (e) => { if (e.target.value.length === 3) setAirport(e.target.value); });
-$('airport').addEventListener('focus', (e) => e.target.select());
 $('refresh').addEventListener('click', refreshNow);
 $('sound').addEventListener('click', (e) => {
   state.soundOn = !state.soundOn;
@@ -160,20 +211,26 @@ $('full').addEventListener('click', () => {
 });
 if (window.Capacitor?.isNativePlatform?.()) $('full').hidden = true;
 
-/* settings dialog */
-const dlg = $('dlg');
-$('settings').addEventListener('click', () => {
-  $('keyInput').value = state.apiKey; $('showKey').checked = false; $('keyInput').type = 'password';
-  dlg.showModal();
+const settings = initSettings({
+  dlg: $('dlg'), openButton: $('settings'),
+  getKey: () => state.apiKey, getAirports: () => state.airports,
+  onSave({ key, airports }) {
+    state.apiKey = key; prefs.setKey(key);
+    state.airports = airports; prefs.setAirports(airports);
+    if (!airports.some((a) => a.iata === state.sel.iata)) { select(airports[0].iata, null); return; }
+    paintTitle();
+    refreshNow();
+  },
 });
-$('showKey').addEventListener('change', (e) => { $('keyInput').type = e.target.checked ? 'text' : 'password'; });
-function applyKey(key) { state.apiKey = key.trim(); store.set(KEY_STORE, state.apiKey); dlg.close(); refreshNow(); }
-$('saveKey').addEventListener('click', (e) => { e.preventDefault(); applyKey($('keyInput').value); });
-$('clearKey').addEventListener('click', () => applyKey(''));
+
+initPicker({
+  root: $('titleWrap'), button: $('picker'), menu: $('menu'),
+  getAirports: () => state.airports, getSel: () => state.sel,
+  onSelect: select, onEdit: () => settings.open(),
+});
 
 /* keep the screen awake while the board is up (best effort) */
-let wake = null;
-async function keepAwake() { try { wake = await navigator.wakeLock?.request('screen'); } catch {} }
+async function keepAwake() { try { await navigator.wakeLock?.request('screen'); } catch { /* unsupported or denied */ } }
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) return;
   keepAwake();
@@ -182,11 +239,7 @@ document.addEventListener('visibilitychange', () => {
 keepAwake();
 
 /* ---------- start ---------- */
-for (const [iata, a] of Object.entries(AIRPORTS)) {
-  $('airportList').appendChild(Object.assign(document.createElement('option'), { value: iata, label: a.name }));
-}
-let initial = 'LBA';
-try { initial = new URLSearchParams(location.search).get('airport') || store.get('airport') || 'LBA'; } catch {}
-setAirport(initial, { push: false });
+paintTitle();
+render();
+refreshNow();
 setInterval(tick, 1000); tick();
-setInterval(() => { if (state.flights.length > ROWS) { state.page++; render(); } }, PAGE_MS);

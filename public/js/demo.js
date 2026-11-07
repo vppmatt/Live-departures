@@ -42,6 +42,7 @@ function scheduleForDay(code, tz, dayStart, dayKey) {
   const rand = rng(hash(code + dayKey));
   const pool = (code === 'LBA' ? LBA_DESTS : GENERIC_DESTS).filter((d) => d[0] !== code);
   const count = code === 'LBA' ? 34 : 60;
+  const terms = (AIRPORTS[code] && AIRPORTS[code].terminals) || [];
   const out = [];
   for (let i = 0; i < count; i++) {
     const mins = 6 * 60 + Math.floor(rand() * ((16 * 60) / 5)) * 5; // 06:00-21:55
@@ -54,6 +55,7 @@ function scheduleForDay(code, tz, dayStart, dayKey) {
       delay: r < 0.68 ? 0 : r < 0.9 ? 5 + Math.floor(rand() * 5) * 5 : 30 + Math.floor(rand() * 10) * 10,
       cancelled: rand() < 0.025,
       gate: String(1 + Math.floor(rand() * 20)),
+      terminal: terms.length ? terms[Math.floor(rand() * terms.length)] : '',
     });
   }
   return out;
@@ -81,7 +83,7 @@ export function demoDepartures(code, now = Date.now()) {
         expected: f.delay >= 5 ? hhmm(info.tz, eff) : null,
         flight: f.flight, dest: f.dest, destIata: f.destIata,
         gate: !f.cancelled && untilDep <= 60 ? f.gate : '',
-        terminal: '', status, sortKey: eff,
+        terminal: f.terminal, status, sortKey: eff,
       });
     }
   }

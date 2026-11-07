@@ -14,6 +14,7 @@ async function api(path, key) {
   const res = await Promise.race([request, timeout]);
   if (res.status === 401 || res.status === 403) throw new Error('API key rejected (check it in Settings)');
   if (res.status === 429) throw new Error('API quota exceeded');
+  if (res.status === 404) throw Object.assign(new Error('not found'), { status: 404 });
   if (!res.ok) throw new Error(`AeroDataBox error ${res.status}`);
   return res.json();
 }
@@ -30,6 +31,12 @@ async function airportInfo(code, key) {
   }
   airportCache.set(code, info);
   return info;
+}
+
+/** Name + timezone for an IATA code, e.g. when adding a preferred airport. */
+export async function lookupAirport(code, key) {
+  try { return await airportInfo(code, key); }
+  catch (err) { throw err.status === 404 ? new Error(`No airport found for ${code}`) : err; }
 }
 
 function mapStatus(raw, sched, revised, now) {

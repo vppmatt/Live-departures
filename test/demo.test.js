@@ -38,3 +38,37 @@ test('AeroDataBox mapping, with a mocked response', async () => {
   assert.deepStrictEqual(r.flights.map((f) => [f.time, f.dest, f.status, f.expected, f.gate]),
     [['09:30', 'PALMA', 'delayed', '09:55', '4'], ['10:00', 'DUBLIN', 'cancelled', null, '']]);
 });
+
+import { normTerm, termLabel, terminalsFor, terminalsIn, filterByTerminal } from '../public/js/airports.js';
+import { findAirport } from '../public/js/departures.js';
+
+test('terminal helpers normalise and filter', () => {
+  assert.strictEqual(normTerm('Terminal 2'), '2');
+  assert.strictEqual(normTerm('T3'), '3');
+  assert.strictEqual(normTerm('North'), 'N');
+  assert.strictEqual(normTerm(undefined), '');
+  assert.strictEqual(termLabel('S'), 'South Terminal');
+  assert.deepStrictEqual(terminalsFor({ iata: 'MAN' }), ['1', '2', '3']);
+  assert.deepStrictEqual(terminalsFor({ iata: 'LBA' }), []);
+  assert.deepStrictEqual(terminalsFor({ iata: 'XYZ', terminals: ['10', '2', 'T2'] }), ['2', '10']);
+  const fl = [{ terminal: '2' }, { terminal: 'T3' }, { terminal: '' }, { terminal: '2' }];
+  assert.strictEqual(filterByTerminal(fl, '2').length, 2);
+  assert.strictEqual(filterByTerminal(fl, null).length, 4);
+  assert.deepStrictEqual(terminalsIn(fl).sort(), ['2', '3']);
+});
+
+test('demo flights carry terminals for multi-terminal airports only', () => {
+  const now = Date.UTC(2026, 10, 7, 9, 0);
+  const man = demoDepartures('MAN', now).flights;
+  assert.deepStrictEqual(terminalsIn(man).sort(), ['1', '2', '3']);
+  assert.deepStrictEqual(terminalsIn(demoDepartures('LBA', now).flights), []);
+});
+
+test('findAirport: built-in, needs key otherwise, maps 404', async () => {
+  assert.strictEqual((await findAirport('MAN', '')).name, 'Manchester');
+  await assert.rejects(findAirport('QQQ', ''), /API key/);
+  globalThis.fetch = async () => ({ ok: false, status: 404 });
+  await assert.rejects(findAirport('QQQ', 'k'), /No airport found for QQQ/);
+  globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({ shortName: 'Quux', timeZone: 'Asia/Tokyo' }) });
+  assert.deepStrictEqual(await findAirport('QUX', 'k'), { iata: 'QUX', name: 'Quux', tz: 'Asia/Tokyo' });
+});

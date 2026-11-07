@@ -11,10 +11,15 @@
 <body>
 <main class="board" id="board">
   <header class="bar">
-    <div class="title">
+    <div class="title" id="titleWrap">
       <span class="plane" aria-hidden="true">&#9992;</span>
-      <h1 id="airportName">Departures</h1>
+      <h1>
+        <button id="picker" class="picker" type="button" aria-haspopup="menu" aria-expanded="false" title="Choose airport">
+          <span id="airportName">Departures</span><span class="caret" aria-hidden="true">&#9662;</span>
+        </button><span class="dep">departures</span>
+      </h1>
       <span class="badge" id="badge" hidden></span>
+      <div class="menu" id="menu" role="menu" aria-label="Choose airport" hidden></div>
     </div>
     <div class="clock" id="clock" aria-label="Local time">--:--:--</div>
   </header>
@@ -29,11 +34,8 @@
 
   <footer class="bar foot">
     <div class="status" id="updated" role="status">Loading…</div>
+    <nav class="pager" id="pager" aria-label="Pages" hidden></nav>
     <div class="controls">
-      <label class="field">Airport
-        <input id="airport" list="airportList" maxlength="3" autocomplete="off" spellcheck="false">
-        <datalist id="airportList"></datalist>
-      </label>
       <button id="refresh" type="button" title="Refresh now">Refresh</button>
       <button id="sound" type="button" aria-pressed="false" title="Toggle flap sound">Sound: off</button>
       <button id="full" type="button" title="Fullscreen">Fullscreen</button>
@@ -44,14 +46,33 @@
 <dialog id="dlg">
   <form method="dialog" id="settingsForm">
     <h2>Settings</h2>
-    <p class="hint">Live data uses <a href="https://rapidapi.com/aedbx-aedbx/api/aerodatabox" target="_blank" rel="noopener">AeroDataBox on RapidAPI</a>.
-      Paste your RapidAPI key below. It is stored only on this device. Without a key the board shows demo data.</p>
-    <label class="block">RapidAPI key
-      <input id="keyInput" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="paste key here">
-    </label>
-    <label class="check"><input id="showKey" type="checkbox"> Show key</label>
+
+    <section>
+      <h3>Live data</h3>
+      <p class="hint">Uses <a href="https://rapidapi.com/aedbx-aedbx/api/aerodatabox" target="_blank" rel="noopener">AeroDataBox on RapidAPI</a>.
+        Paste your RapidAPI key. It is stored only on this device. Without a key the board shows demo data.</p>
+      <label class="block">RapidAPI key
+        <input id="keyInput" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="paste key here">
+      </label>
+      <div class="keyrow">
+        <label class="check"><input id="showKey" type="checkbox"> Show key</label>
+        <button type="button" id="clearKey" class="link">Clear key</button>
+      </div>
+    </section>
+
+    <section>
+      <h3>Preferred airports</h3>
+      <p class="hint">These appear when you tap the airport name on the board.</p>
+      <ul class="aplist" id="apList"></ul>
+      <div class="addrow">
+        <input id="apInput" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="IATA code" aria-label="Airport IATA code">
+        <button type="button" id="apAdd">Add</button>
+      </div>
+      <p class="hint" id="apMsg" role="status"></p>
+      <div id="apChipsWrap"><span class="hint">Quick add:</span> <span class="chips" id="apChips"></span></div>
+    </section>
+
     <div class="actions">
-      <button value="clear" id="clearKey" type="button">Remove key</button>
       <span class="spacer"></span>
       <button value="cancel">Cancel</button>
       <button value="save" id="saveKey" class="primary">Save</button>
