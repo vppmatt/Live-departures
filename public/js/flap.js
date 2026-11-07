@@ -1,10 +1,17 @@
 // Split-flap display primitives: Flap (one character), Row (a set of cells).
+//
+// A flip is ONE continuous animation of a two-faced leaf hinged on the centre seam:
+// its front face (old top half) swings down through 180deg and its back face (new bottom
+// half) lands on the lower half. Leaves are created lazily and travel is capped, so even
+// a full-board update stays light enough for a phone.
 
 const CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:-./'+";
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const HALF_MS = 38; // each half of a flip
+const FLIP_MS = 110;     // one full flip; ~6 frames at 60Hz
+const MAX_FLIPS = 6;     // never cycle more than this many cards per update
+const EASE = 'cubic-bezier(.45, 0, .85, .55)'; // slow start, gravity-like finish
 
-function normalise(text, len) {
+export function normalise(text, len) {
   return String(text ?? '')
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
     .toUpperCase()
@@ -12,79 +19,93 @@ function normalise(text, len) {
     .padEnd(len, ' ').slice(0, len);
 }
 
-function el(cls, ch) {
+function face(cls) {
   const d = document.createElement('div');
   d.className = cls;
-  if (ch !== undefined) d.appendChild(document.createElement('span')).textContent = ch;
+  const s = d.appendChild(document.createElement('span'));
+  s.appendChild(document.createTextNode(' '));
   return d;
 }
+const paint = (node, ch) => { node.firstChild.firstChild.nodeValue = ch; };
 
 class Flap {
   constructor(onFlip) {
     this.cur = ' '; this.target = ' '; this.running = false; this.onFlip = onFlip;
-    this.root = el('flap');
-    this.top = el('half top', ' ');          // shows NEW upper half during a flip
-    this.bottom = el('half bottom', ' ');    // shows OLD lower half until the leaf lands
-    this.leafTop = el('leaf top', ' ');      // OLD upper half, folds down
-    this.leafBottom = el('leaf bottom', ' ');// NEW lower half, unfolds
-    this.root.append(this.top, this.bottom, this.leafTop, this.leafBottom, document.createElement('i'));
+    this.leaf = null;
+    this.root = document.createElement('div');
+    this.root.className = 'flap';
+    this.top = face('half top');
+    this.bottom = face('half bottom');
+    this.root.append(this.top, this.bottom);
   }
 
-  static paint(node, ch) { node.firstChild.textContent = ch; }
+  _ensureLeaf() {
+    if (this.leaf) return;
+    this.leaf = document.createElement('div');
+    this.leaf.className = 'leaf';
+    this.front = face('face front top');   // old upper half
+    this.back = face('face back bottom');  // new lower half (pre-rotated 180deg)
+    this.leaf.append(this.front, this.back);
+    this.root.appendChild(this.leaf);
+  }
 
-  /** Flip (via every intervening character, like the real thing) to `ch`. */
+  /** Flip to `ch`, passing through the characters in between (capped at MAX_FLIPS cards). */
   set(ch, delay = 0) {
     this.target = ch;
     if (this.running || ch === this.cur) return;
     if (REDUCED || document.hidden) { this._show(ch); return; }
     this.running = true;
+    // Distance round the drum; if long, the first card jumps ahead so we flip <= MAX_FLIPS.
+    const n = CHARS.length;
+    const dist = (CHARS.indexOf(ch) - CHARS.indexOf(this.cur) + n) % n;
+    this.skip = Math.max(0, dist - MAX_FLIPS);
     setTimeout(() => this._step(), delay);
   }
 
   _show(ch) {
     this.cur = ch;
-    for (const n of [this.top, this.bottom, this.leafTop, this.leafBottom]) Flap.paint(n, ch);
+    paint(this.top, ch); paint(this.bottom, ch);
   }
 
   async _step() {
-    if (this.cur === this.target || document.hidden) {
-      if (this.cur !== this.target) this._show(this.target);
-      this.running = false;
-      return;
+    while (this.cur !== this.target) {
+      if (document.hidden) { this._show(this.target); break; }
+      const n = CHARS.length;
+      const next = CHARS[(CHARS.indexOf(this.cur) + 1 + this.skip) % n];
+      this.skip = 0;
+      await this._flip(this.cur, next);
+      this.cur = next;
     }
-    const idx = CHARS.indexOf(this.cur);
-    const next = CHARS[(idx + 1) % CHARS.length];
-    await this._flip(this.cur, next);
-    this.cur = next;
-    this._step();
+    this.running = false;
   }
 
   async _flip(from, to) {
-    Flap.paint(this.top, to);
-    Flap.paint(this.leafTop, from);
-    Flap.paint(this.leafBottom, to);
-    this.leafTop.style.display = this.leafBottom.style.display = 'block';
+    this._ensureLeaf();
+    paint(this.top, to);          // revealed as the leaf lifts
+    paint(this.front, from);
+    paint(this.back, to);
+    this.leaf.style.visibility = 'visible';
     if (this.onFlip) this.onFlip();
-    await this.leafTop.animate(
-      [{ transform: 'rotateX(0deg)' }, { transform: 'rotateX(-90deg)' }],
-      { duration: HALF_MS, easing: 'ease-in', fill: 'forwards' }).finished;
-    await this.leafBottom.animate(
-      [{ transform: 'rotateX(90deg)' }, { transform: 'rotateX(0deg)' }],
-      { duration: HALF_MS, easing: 'ease-out', fill: 'forwards' }).finished;
-    Flap.paint(this.bottom, to);
-    this.leafTop.style.display = this.leafBottom.style.display = 'none';
-    for (const l of [this.leafTop, this.leafBottom]) l.getAnimations().forEach((a) => a.cancel());
+    const anim = this.leaf.animate(
+      [{ transform: 'rotateX(0deg)' }, { transform: 'rotateX(-180deg)' }],
+      { duration: FLIP_MS, easing: EASE, fill: 'forwards' });
+    await anim.finished;
+    paint(this.bottom, to);       // the leaf now sits exactly on top of this; swap underneath
+    this.leaf.style.visibility = 'hidden';
+    anim.cancel();
   }
 }
 
-class Row {
+export class Row {
   /** @param {{key:string,len:number,cls:string}[]} columns */
   constructor(columns, onFlip) {
     this.columns = columns;
-    this.root = el('row');
+    this.root = document.createElement('div');
+    this.root.className = 'row';
     this.root.setAttribute('role', 'row');
     this.cells = columns.map((c) => {
-      const cell = el('cell ' + c.cls);
+      const cell = document.createElement('div');
+      cell.className = 'cell ' + c.cls;
       cell.style.setProperty('--n', c.len);
       cell.setAttribute('role', 'cell');
       const flaps = Array.from({ length: c.len }, () => new Flap(onFlip));
@@ -101,9 +122,7 @@ class Row {
     this.columns.forEach((c, ci) => {
       const text = normalise(values[c.key], c.len);
       this.root.children[ci].setAttribute('aria-label', text.trim());
-      this.cells[ci].forEach((flap, i) => flap.set(text[i], rowDelay + (order++) * 12));
+      this.cells[ci].forEach((flap, i) => flap.set(text[i], rowDelay + (order++) * 14));
     });
   }
 }
-
-export { Row, normalise };

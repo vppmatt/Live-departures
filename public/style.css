@@ -41,30 +41,35 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
 /* ---- split-flap tile ---- */
 .flap {
   position: relative; width: 1.33em; height: 2em; perspective: 12em;
+  contain: layout style;               /* keep each tile's layout/style work local */
   font-family: "Arial Narrow", "Helvetica Neue", Arial, sans-serif; font-weight: 700; line-height: 1;
   --f: 1.5em; /* glyph size */
 }
-.half, .leaf { position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: var(--tile); border-radius: .14em; }
-.half.top, .leaf.top { top: 0; border-radius: .14em .14em 0 0; background: linear-gradient(var(--tile-hi), var(--tile)); }
-.half.bottom, .leaf.bottom { top: 50%; border-radius: 0 0 .14em .14em; background: linear-gradient(var(--tile), #151618); }
-.half span, .leaf span {
+.half, .face { position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; background: var(--tile); }
+.half.top, .face.top { top: 0; border-radius: .14em .14em 0 0; background: linear-gradient(var(--tile-hi), var(--tile)); }
+.half.bottom, .face.bottom { top: 0; border-radius: 0 0 .14em .14em; background: linear-gradient(var(--tile), #151618); }
+.half.bottom { top: 50%; }
+.half span, .face span {
   position: absolute; left: 0; width: 100%; height: 200%;
   display: flex; align-items: center; justify-content: center;
-  font-size: var(--f); color: var(--ink); text-transform: uppercase;
+  font-size: var(--f); color: var(--ink);
 }
 .bottom span { top: -100%; }
 .top span { top: 0; }
-.leaf { backface-visibility: hidden; will-change: transform; display: none; }
-.leaf.top { transform-origin: 50% 100%; z-index: 3; }
-.leaf.bottom { transform-origin: 50% 0; z-index: 3; }
+
+/* The leaf is the top half, hinged on the centre seam, with a second face on its back. */
+.leaf { position: absolute; left: 0; top: 0; width: 100%; height: 50%; z-index: 3;
+  transform-origin: 50% 100%; transform-style: preserve-3d; visibility: hidden; }
+.face { backface-visibility: hidden; -webkit-backface-visibility: hidden; inset: 0; height: 100%; }
+.face.back { transform: rotateX(180deg); }
+
 .flap::after { /* centre seam */
-  content: ""; position: absolute; left: 0; right: 0; top: calc(50% - 1px); height: 2px; background: var(--seam); z-index: 5; box-shadow: 0 1px 0 #ffffff10;
+  content: ""; position: absolute; left: 0; right: 0; top: calc(50% - .03em); height: max(1px, .06em); background: var(--seam); opacity: .8; z-index: 5;
 }
-.flap::before, .flap i { /* axle pins */
-  content: ""; position: absolute; top: calc(50% - .09em); width: .18em; height: .18em; background: #000; border-radius: 50%; z-index: 6;
+.flap::before { /* axle pins */
+  content: ""; position: absolute; left: -.02em; right: -.02em; top: calc(50% - .09em); height: .18em; z-index: 6;
+  background: radial-gradient(circle at .09em 50%, #000 .08em, transparent .09em), radial-gradient(circle at calc(100% - .09em) 50%, #000 .08em, transparent .09em);
 }
-.flap::before { left: -.02em; }
-.flap i { right: -.02em; }
 
 /* colour coding by column / status */
 .row .time .flap span { color: var(--amber); }
@@ -110,4 +115,3 @@ input:not([type]), input[type="password"], input[type="text"] { color: var(--ink
   .cols, .row { gap: .8em; }
   .cell.gate, .cols span:nth-child(4) { display: none; }
 }
-@media (prefers-reduced-motion: reduce) { .leaf { display: none !important; } }
